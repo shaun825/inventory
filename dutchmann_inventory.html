@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dutchmann — Parts Inventory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Georgia:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --white: #ffffff;
+  --off: #f7f6f4;
+  --rule: #e0ddd8;
+  --rule-dark: #c8c4be;
+  --text: #161614;
+  --text-mid: #6b6860;
+  --text-light: #a09d99;
+  --accent: #161614;
+  --danger: #9b2020;
+  --success: #1f6b3c;
+  --sans: 'DM Sans', sans-serif;
+  --serif: Georgia, 'Times New Roman', serif;
+}
+body { background: var(--white); color: var(--text); font-family: var(--sans); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+input, select, textarea, button { font-family: var(--sans); color: var(--text); }
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 48px;
+  background: var(--white); padding: 24px;
+}
+.brand-login { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.brand-login .wordmark { font-family: var(--serif); font-size: 26px; letter-spacing: 0.04em; color: var(--text); font-weight: 400; }
+.brand-login .sub { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-light); font-weight: 300; }
+.login-box { width: 100%; max-width: 320px; }
+.login-label { display: block; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-light); margin-bottom: 16px; }
+.login-box input[type="password"] {
+  width: 100%; background: var(--white); border: none;
+  border-bottom: 1px solid var(--rule-dark);
+  color: var(--text); font-size: 15px; padding: 10px 0;
+  outline: none; letter-spacing: 0.1em;
+  margin-bottom: 20px; transition: border-color 0.2s;
+}
+.login-box input[type="password"]:focus { border-bottom-color: var(--text); }
+.login-box button {
+  width: 100%; background: var(--text); color: var(--white);
+  border: none; font-size: 10px; letter-spacing: 0.25em;
+  text-transform: uppercase; font-weight: 500;
+  padding: 14px; cursor: pointer; transition: opacity 0.2s;
+}
+.login-box button:hover { opacity: 0.78; }
+.login-error { font-size: 10px; letter-spacing: 0.12em; color: var(--danger); margin-top: 12px; display: none; }
+
+/* ── APP SHELL ── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+
+header {
+  border-bottom: 1px solid var(--rule);
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); position: sticky; top: 0; z-index: 100;
+  height: 60px;
+}
+.header-left { display: flex; align-items: baseline; gap: 14px; }
+.header-wordmark { font-family: var(--serif); font-size: 18px; color: var(--text); font-weight: 400; letter-spacing: 0.02em; }
+.header-divider { width: 1px; height: 14px; background: var(--rule-dark); }
+.header-sub { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-light); }
+
+.tab-row { display: flex; gap: 2px; }
+.tab-btn {
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  background: none; border: none; border-bottom: 1.5px solid transparent;
+  color: var(--text-light); padding: 0 16px; height: 60px;
+  cursor: pointer; transition: all 0.15s; font-weight: 400;
+}
+.tab-btn:hover { color: var(--text-mid); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+
+main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+.section-label {
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--text-light); padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule); margin-bottom: 36px;
+}
+
+/* ── ADD FORM ── */
+#tab-add { display: block; }
+#tab-inventory { display: none; }
+
+.form-layout { display: grid; grid-template-columns: 360px 1fr; gap: 48px; }
+@media (max-width: 780px) { .form-layout { grid-template-columns: 1fr; } }
+
+/* Photo zone */
+.photo-zone {
+  border: 1px solid var(--rule); background: var(--off);
+  min-height: 320px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.photo-zone:hover { border-color: var(--rule-dark); }
+.photo-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.photo-zone .ph-icon { font-size: 28px; color: var(--text-light); line-height: 1; }
+.photo-zone .ph-hint { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-light); }
+.photo-zone .ph-sub { font-size: 10px; color: var(--rule-dark); letter-spacing: 0.08em; }
+.photo-zone img.ph-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.photo-zone .ph-clear {
+  position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.92);
+  border: 1px solid var(--rule); color: var(--text-mid); width: 28px; height: 28px;
+  display: none; align-items: center; justify-content: center; cursor: pointer;
+  font-size: 14px; z-index: 2; transition: all 0.15s;
+}
+.photo-zone .ph-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+/* Fields */
+.fields { display: flex; flex-direction: column; gap: 24px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-light); }
+.field input, .field select, .field textarea {
+  background: var(--white); border: none;
+  border-bottom: 1px solid var(--rule-dark);
+  color: var(--text); font-size: 14px; padding: 9px 0;
+  outline: none; transition: border-color 0.2s; width: 100%;
+}
+.field textarea { resize: vertical; min-height: 80px; border: 1px solid var(--rule-dark); padding: 10px 12px; line-height: 1.5; }
+.field textarea:focus { border-color: var(--text); }
+.field input:focus, .field select:focus { border-bottom-color: var(--text); }
+.field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a09d99'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; cursor: pointer; }
+.field .opt-note { font-size: 10px; color: var(--text-light); letter-spacing: 0.06em; }
+
+.submit-row { display: flex; align-items: center; gap: 18px; margin-top: 8px; }
+.btn-submit {
+  background: var(--text); color: var(--white); border: none;
+  font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase;
+  font-weight: 500; padding: 13px 32px; cursor: pointer; transition: opacity 0.2s;
+}
+.btn-submit:hover { opacity: 0.78; }
+.btn-submit:disabled { opacity: 0.3; cursor: not-allowed; }
+.form-msg { font-size: 10px; letter-spacing: 0.12em; display: none; }
+.form-msg.ok { color: var(--success); }
+.form-msg.err { color: var(--danger); }
+
+/* ── INVENTORY ── */
+.inv-controls { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; align-items: center; }
+.search-wrap { flex: 1; min-width: 200px; position: relative; }
+.search-wrap svg { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--text-light); }
+.search-wrap input {
+  width: 100%; background: var(--white); border: none;
+  border-bottom: 1px solid var(--rule-dark);
+  color: var(--text); font-size: 14px; padding: 9px 0 9px 22px;
+  outline: none; transition: border-color 0.2s;
+}
+.search-wrap input:focus { border-bottom-color: var(--text); }
+.filter-sel {
+  background: var(--white); border: none; border-bottom: 1px solid var(--rule-dark);
+  color: var(--text-mid); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 9px 22px 9px 0; outline: none; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a09d99'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 2px center;
+}
+.filter-sel:focus { border-bottom-color: var(--text); }
+.inv-count { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-light); white-space: nowrap; }
+
+.parts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.part-card { background: var(--white); cursor: pointer; transition: background 0.12s; display: flex; flex-direction: column; }
+.part-card:hover { background: var(--off); }
+.card-img { width: 100%; height: 180px; background: var(--off); overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--text-light); font-size: 32px; }
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.card-body { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.card-desc { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--text); }
+.card-pn { font-size: 11px; letter-spacing: 0.06em; color: var(--text-mid); margin-top: 2px; }
+.card-pn.empty { color: var(--text-light); font-size: 10px; }
+.card-footer { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.badge {
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 3px 8px; border: 1px solid var(--rule-dark); color: var(--text-mid);
+}
+.badge.new { border-color: #b5d5c0; color: var(--success); }
+.badge.used { border-color: var(--rule-dark); color: var(--text-light); }
+.badge.refurb { border-color: #c8b99a; color: #7a5c2e; }
+.card-loc { font-size: 10px; letter-spacing: 0.1em; color: var(--text-light); margin-top: auto; padding-top: 10px; border-top: 1px solid var(--rule); }
+
+.empty-state { grid-column: 1/-1; text-align: center; padding: 80px 24px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-light); }
+.loading-state { text-align: center; padding: 80px 24px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-light); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(22,22,20,0.55);
+  display: none; align-items: flex-start; justify-content: center;
+  z-index: 300; padding: 48px 20px; overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+.modal { background: var(--white); border: 1px solid var(--rule); width: 100%; max-width: 600px; position: relative; margin: auto; }
+.modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: rgba(255,255,255,0.9); border: 1px solid var(--rule);
+  color: var(--text-light); width: 30px; height: 30px;
+  cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+  z-index: 1; transition: all 0.15s;
+}
+.modal-close:hover { border-color: var(--danger); color: var(--danger); }
+.modal-img { width: 100%; height: 280px; overflow: hidden; background: var(--off); display: flex; align-items: center; justify-content: center; color: var(--text-light); font-size: 48px; }
+.modal-img img { width: 100%; height: 100%; object-fit: cover; }
+.modal-body { padding: 28px 28px 24px; }
+.modal-title { font-family: var(--serif); font-size: 20px; font-weight: 400; margin-bottom: 6px; padding-right: 36px; line-height: 1.35; }
+.modal-pn { font-size: 12px; letter-spacing: 0.1em; color: var(--text-mid); margin-bottom: 24px; }
+.modal-pn.empty { color: var(--text-light); font-size: 11px; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; border-top: 1px solid var(--rule); padding-top: 20px; margin-bottom: 20px; }
+.modal-field label { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-light); display: block; margin-bottom: 5px; }
+.modal-field span { font-size: 13px; color: var(--text); }
+.modal-foot { display: flex; border-top: 1px solid var(--rule); padding-top: 18px; }
+.btn-delete {
+  margin-left: auto; background: none; border: 1px solid var(--rule-dark);
+  color: var(--text-light); font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase; padding: 9px 18px; cursor: pointer; transition: all 0.15s;
+}
+.btn-delete:hover { border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+
+<script>
+  const CONFIG = {
+    SUPABASE_URL:      'YOUR_SUPABASE_URL',
+    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+    APP_PASSWORD:      'dutchmann',
+    STORAGE_BUCKET:    'parts-photos',
+    TABLE_NAME:        'parts',
+  };
+</script>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="brand-login">
+    <div class="wordmark">Dutchmann</div>
+    <div class="sub">Parts Inventory</div>
+  </div>
+  <div class="login-box">
+    <span class="login-label">Access required</span>
+    <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
+    <button id="pw-btn">Enter</button>
+    <div class="login-error" id="pw-error">Incorrect password</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-left">
+      <span class="header-wordmark">Dutchmann</span>
+      <div class="header-divider"></div>
+      <span class="header-sub">Parts Inventory</span>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" data-tab="add">Add Part</button>
+      <button class="tab-btn" data-tab="inventory">Inventory</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ADD PART -->
+    <div id="tab-add">
+      <div class="section-label">Log new part</div>
+      <div class="form-layout">
+        <div>
+          <div class="photo-zone" id="photo-zone">
+            <input type="file" id="photo-input" accept="image/*" capture="environment">
+            <div class="ph-icon">☉</div>
+            <div class="ph-hint">Photograph part</div>
+            <div class="ph-sub">or select from files</div>
+            <img class="ph-preview" id="ph-preview" alt="preview">
+            <button class="ph-clear" id="ph-clear" type="button">✕</button>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label>Description <span style="color:var(--danger)">*</span></label>
+            <textarea id="f-desc" placeholder="e.g. Rear trailing arm bushing, rubber insert, left side" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label>Part Number / OEM Reference</label>
+            <input type="text" id="f-pn" placeholder="e.g. 993-333-012-00">
+            <span class="opt-note">Optional — leave blank if unknown</span>
+          </div>
+          <div class="field">
+            <label>Condition <span style="color:var(--danger)">*</span></label>
+            <select id="f-cond">
+              <option value="">Select…</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+              <option value="refurb">Refurbished</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Location / Shelf</label>
+            <input type="text" id="f-loc" placeholder="e.g. Shelf B3 / Bin 12">
+          </div>
+          <div class="submit-row">
+            <button class="btn-submit" id="btn-submit">Save Part</button>
+            <span class="form-msg" id="form-msg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="tab-inventory">
+      <div class="section-label">All parts</div>
+      <div class="inv-controls">
+        <div class="search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search-input" placeholder="Search description, part number, location…">
+        </div>
+        <select class="filter-sel" id="filter-cond">
+          <option value="">All conditions</option>
+          <option value="new">New</option>
+          <option value="used">Used</option>
+          <option value="refurb">Refurbished</option>
+        </select>
+        <span class="inv-count" id="inv-count">— parts</span>
+      </div>
+      <div id="parts-loading" class="loading-state">Loading…</div>
+      <div class="parts-grid" id="parts-grid" style="display:none;"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-img" id="modal-img"></div>
+    <div class="modal-body">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-pn" id="modal-pn"></div>
+      <div class="modal-grid">
+        <div class="modal-field"><label>Condition</label><span id="modal-cond"></span></div>
+        <div class="modal-field"><label>Location</label><span id="modal-loc"></span></div>
+        <div class="modal-field"><label>Date Added</label><span id="modal-date"></span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-delete" id="btn-delete">Delete Part</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sb;
+try { sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY); }
+catch(e) { console.warn('Supabase not configured yet:', e.message); }
+
+let allParts = [], currentPartId = null, selectedFile = null;
+
+// LOGIN
+const loginScreen = document.getElementById('login-screen');
+const appEl = document.getElementById('app');
+const pwInput = document.getElementById('pw-input');
+
+function tryLogin() {
+  if (pwInput.value === CONFIG.APP_PASSWORD) {
+    loginScreen.style.display = 'none';
+    appEl.style.display = 'flex';
+    loadInventory();
+  } else {
+    const err = document.getElementById('pw-error');
+    err.style.display = 'block';
+    pwInput.value = '';
+    pwInput.focus();
+    setTimeout(() => { err.style.display = 'none'; }, 2200);
+  }
+}
+document.getElementById('pw-btn').addEventListener('click', tryLogin);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+// TABS
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-add').style.display = tab === 'add' ? 'block' : 'none';
+    document.getElementById('tab-inventory').style.display = tab === 'inventory' ? 'block' : 'none';
+    if (tab === 'inventory') loadInventory();
+  });
+});
+
+// PHOTO
+const photoInput = document.getElementById('photo-input');
+const phPreview = document.getElementById('ph-preview');
+const phClear = document.getElementById('ph-clear');
+const photoZone = document.getElementById('photo-zone');
+
+photoInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  phPreview.src = URL.createObjectURL(file);
+  phPreview.style.display = 'block';
+  phClear.style.display = 'flex';
+  photoZone.querySelector('.ph-icon').style.display = 'none';
+  photoZone.querySelector('.ph-hint').style.display = 'none';
+  photoZone.querySelector('.ph-sub').style.display = 'none';
+});
+
+phClear.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); clearPhoto(); });
+
+function clearPhoto() {
+  selectedFile = null; photoInput.value = '';
+  phPreview.src = ''; phPreview.style.display = 'none'; phClear.style.display = 'none';
+  photoZone.querySelector('.ph-icon').style.display = '';
+  photoZone.querySelector('.ph-hint').style.display = '';
+  photoZone.querySelector('.ph-sub').style.display = '';
+}
+
+// SUBMIT
+const btnSubmit = document.getElementById('btn-submit');
+const formMsg = document.getElementById('form-msg');
+
+btnSubmit.addEventListener('click', async () => {
+  const desc = document.getElementById('f-desc').value.trim();
+  const pn = document.getElementById('f-pn').value.trim();
+  const cond = document.getElementById('f-cond').value;
+  const loc = document.getElementById('f-loc').value.trim();
+  if (!desc) return showMsg('Description is required', 'err');
+  if (!cond) return showMsg('Select a condition', 'err');
+  if (!sb) return showMsg('Configure Supabase first', 'err');
+
+  btnSubmit.disabled = true;
+  showMsg('Saving…', 'ok');
+  try {
+    let photo_url = null;
+    if (selectedFile) {
+      const ext = selectedFile.name.split('.').pop();
+      const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await sb.storage.from(CONFIG.STORAGE_BUCKET).upload(filename, selectedFile, { contentType: selectedFile.type });
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from(CONFIG.STORAGE_BUCKET).getPublicUrl(filename);
+      photo_url = urlData.publicUrl;
+    }
+    const { error: dbErr } = await sb.from(CONFIG.TABLE_NAME).insert({ description: desc, part_number: pn || null, condition: cond, location: loc || null, photo_url });
+    if (dbErr) throw dbErr;
+    showMsg('Saved ✓', 'ok');
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-pn').value = '';
+    document.getElementById('f-cond').value = '';
+    document.getElementById('f-loc').value = '';
+    clearPhoto();
+    allParts = [];
+  } catch (err) {
+    showMsg('Error: ' + err.message, 'err');
+  } finally {
+    btnSubmit.disabled = false;
+  }
+});
+
+function showMsg(text, type) {
+  formMsg.textContent = text; formMsg.className = 'form-msg ' + type; formMsg.style.display = 'block';
+  if (type === 'ok') setTimeout(() => { formMsg.style.display = 'none'; }, 3000);
+}
+
+// INVENTORY
+async function loadInventory() {
+  if (!sb) { document.getElementById('parts-loading').textContent = 'Configure Supabase to load inventory'; return; }
+  document.getElementById('parts-loading').style.display = 'block';
+  document.getElementById('parts-grid').style.display = 'none';
+  const { data, error } = await sb.from(CONFIG.TABLE_NAME).select('*').order('created_at', { ascending: false });
+  document.getElementById('parts-loading').style.display = 'none';
+  if (error) { console.error(error); return; }
+  allParts = data || [];
+  renderGrid(allParts);
+}
+
+function renderGrid(parts) {
+  const grid = document.getElementById('parts-grid');
+  grid.style.display = 'grid';
+  document.getElementById('inv-count').textContent = `${parts.length} part${parts.length !== 1 ? 's' : ''}`;
+  grid.innerHTML = '';
+  if (!parts.length) { grid.innerHTML = '<div class="empty-state">No parts found</div>'; return; }
+  parts.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'part-card'; card.dataset.id = p.id;
+    const imgHtml = p.photo_url ? `<div class="card-img"><img src="${esc(p.photo_url)}" alt="${esc(p.description)}" loading="lazy"></div>` : `<div class="card-img">◎</div>`;
+    const pnHtml = p.part_number ? `<div class="card-pn">${esc(p.part_number)}</div>` : `<div class="card-pn empty">No part number</div>`;
+    const locHtml = p.location ? `<div class="card-loc">${esc(p.location)}</div>` : '';
+    card.innerHTML = `${imgHtml}<div class="card-body"><div class="card-desc">${esc(p.description)}</div>${pnHtml}<div class="card-footer"><span class="badge ${p.condition}">${p.condition}</span></div>${locHtml}</div>`;
+    card.addEventListener('click', () => openModal(p));
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('search-input').addEventListener('input', filterParts);
+document.getElementById('filter-cond').addEventListener('change', filterParts);
+function filterParts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const cond = document.getElementById('filter-cond').value;
+  renderGrid(allParts.filter(p => {
+    const matchQ = !q || (p.description + ' ' + (p.part_number || '') + ' ' + (p.location || '')).toLowerCase().includes(q);
+    return matchQ && (!cond || p.condition === cond);
+  }));
+}
+
+// MODAL
+function openModal(p) {
+  currentPartId = p.id;
+  document.getElementById('modal-img').innerHTML = p.photo_url ? `<img src="${esc(p.photo_url)}" alt="${esc(p.description)}">` : '◎';
+  document.getElementById('modal-title').textContent = p.description;
+  const pnEl = document.getElementById('modal-pn');
+  pnEl.textContent = p.part_number || 'No part number';
+  pnEl.className = 'modal-pn' + (p.part_number ? '' : ' empty');
+  document.getElementById('modal-cond').textContent = p.condition.charAt(0).toUpperCase() + p.condition.slice(1);
+  document.getElementById('modal-loc').textContent = p.location || '—';
+  document.getElementById('modal-date').textContent = new Date(p.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target.id === 'modal-overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); currentPartId = null; }
+
+document.getElementById('btn-delete').addEventListener('click', async () => {
+  if (!currentPartId) return;
+  if (!confirm('Delete this part? This cannot be undone.')) return;
+  const { error } = await sb.from(CONFIG.TABLE_NAME).delete().eq('id', currentPartId);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  allParts = allParts.filter(p => p.id !== currentPartId);
+  closeModal(); filterParts();
+});
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
