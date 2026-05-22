@@ -225,9 +225,9 @@ main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 10
 
 <script>
   const CONFIG = {
-    SUPABASE_URL:      'https://kzjfdrrirdfxnjspzbvd.supabase.co',
-    SUPABASE_ANON_KEY: 'sb_publishable_3UL94yPPzsblrxWf0yeRSw_4oPpz5nh',
-    APP_PASSWORD:      '1234',
+    SUPABASE_URL:      'YOUR_SUPABASE_URL',
+    SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+    APP_PASSWORD:      'dutchmann',
     STORAGE_BUCKET:    'parts-photos',
     TABLE_NAME:        'parts',
   };
@@ -299,6 +299,16 @@ main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 10
             <label>Location / Shelf</label>
             <input type="text" id="f-loc" placeholder="e.g. Shelf B3 / Bin 12">
           </div>
+          <div class="field">
+            <label>Source</label>
+            <input type="text" id="f-source" placeholder="e.g. EBS, JB Racing, stripped from 964">
+            <span class="opt-note">Optional — where did this part come from?</span>
+          </div>
+          <div class="field">
+            <label>Destination</label>
+            <input type="text" id="f-dest" placeholder="e.g. Fitted to Colorado 993, sold to client">
+            <span class="opt-note">Optional — where did this part go?</span>
+          </div>
           <div class="submit-row">
             <button class="btn-submit" id="btn-submit">Save Part</button>
             <span class="form-msg" id="form-msg"></span>
@@ -341,6 +351,8 @@ main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 10
         <div class="modal-field"><label>Condition</label><span id="modal-cond"></span></div>
         <div class="modal-field"><label>Location</label><span id="modal-loc"></span></div>
         <div class="modal-field"><label>Date Added</label><span id="modal-date"></span></div>
+        <div class="modal-field"><label>Source</label><span id="modal-source"></span></div>
+        <div class="modal-field"><label>Destination</label><span id="modal-dest"></span></div>
       </div>
       <div class="modal-foot">
         <button class="btn-delete" id="btn-delete">Delete Part</button>
@@ -426,6 +438,8 @@ btnSubmit.addEventListener('click', async () => {
   const pn = document.getElementById('f-pn').value.trim();
   const cond = document.getElementById('f-cond').value;
   const loc = document.getElementById('f-loc').value.trim();
+  const source = document.getElementById('f-source').value.trim();
+  const dest = document.getElementById('f-dest').value.trim();
   if (!desc) return showMsg('Description is required', 'err');
   if (!cond) return showMsg('Select a condition', 'err');
   if (!sb) return showMsg('Configure Supabase first', 'err');
@@ -442,13 +456,15 @@ btnSubmit.addEventListener('click', async () => {
       const { data: urlData } = sb.storage.from(CONFIG.STORAGE_BUCKET).getPublicUrl(filename);
       photo_url = urlData.publicUrl;
     }
-    const { error: dbErr } = await sb.from(CONFIG.TABLE_NAME).insert({ description: desc, part_number: pn || null, condition: cond, location: loc || null, photo_url });
+    const { error: dbErr } = await sb.from(CONFIG.TABLE_NAME).insert({ description: desc, part_number: pn || null, condition: cond, location: loc || null, photo_url, source: source || null, destination: dest || null });
     if (dbErr) throw dbErr;
     showMsg('Saved ✓', 'ok');
     document.getElementById('f-desc').value = '';
     document.getElementById('f-pn').value = '';
     document.getElementById('f-cond').value = '';
     document.getElementById('f-loc').value = '';
+    document.getElementById('f-source').value = '';
+    document.getElementById('f-dest').value = '';
     clearPhoto();
     allParts = [];
   } catch (err) {
@@ -515,6 +531,8 @@ function openModal(p) {
   document.getElementById('modal-cond').textContent = p.condition.charAt(0).toUpperCase() + p.condition.slice(1);
   document.getElementById('modal-loc').textContent = p.location || '—';
   document.getElementById('modal-date').textContent = new Date(p.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+  document.getElementById('modal-source').textContent = p.source || '—';
+  document.getElementById('modal-dest').textContent = p.destination || '—';
   document.getElementById('modal-overlay').classList.add('open');
 }
 
