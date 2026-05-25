@@ -227,7 +227,7 @@ main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 10
   const CONFIG = {
     SUPABASE_URL:      'https://kzjfdrrirdfxnjspzbvd.supabase.co',
     SUPABASE_ANON_KEY: 'sb_publishable_3UL94yPPzsblrxWf0yeRSw_4oPpz5nh',
-    APP_PASSWORD:      '1234',
+    APP_PASSWORD_HASH: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
     STORAGE_BUCKET:    'parts-photos',
     TABLE_NAME:        'parts',
   };
@@ -373,8 +373,11 @@ const loginScreen = document.getElementById('login-screen');
 const appEl = document.getElementById('app');
 const pwInput = document.getElementById('pw-input');
 
-function tryLogin() {
-  if (pwInput.value === CONFIG.APP_PASSWORD) {
+async function tryLogin() {
+  const msgBuffer = new TextEncoder().encode(pwInput.value);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  if (hash === CONFIG.APP_PASSWORD_HASH) {
     loginScreen.style.display = 'none';
     appEl.style.display = 'flex';
     loadInventory();
